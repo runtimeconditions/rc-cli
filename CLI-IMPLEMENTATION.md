@@ -187,7 +187,19 @@ Windows and RPM channels follow after the initial package contract; do not adver
 ## 9. Build, release, and package channels
 
 - Tag rc-cli independently; pin component locks, Cobra, build Go, packaging tools, and Actions by full SHA.
-- Build rc with source/version metadata, assemble locked upstream bytes once, and create a complete inventory.
+- For tag-triggered release builds, validate the vMAJOR.MINOR.PATCH tag (including prereleases) and
+  checked-out commit, then embed GITHUB_REF_NAME and GITHUB_SHA as linker values:
+
+  ~~~sh
+  mkdir -p dist
+  go build -trimpath \
+    -ldflags "-X main.version=${GITHUB_REF_NAME} -X main.commit=${GITHUB_SHA}" \
+    -o dist/rc ./cmd/rc
+  ~~~
+
+  Verify rc version, rc --version, and rc version --output yaml report the release tag and source commit.
+  Reject dev/unknown metadata in release artifacts; ordinary local builds retain those defaults.
+- Assemble locked upstream bytes and the verified CLI once; create a complete inventory and package without rebuilding.
 - Produce platform tar.gz archives, SHA256SUMS, component YAML, and .deb packages using pinned nFPM.
   Map Go amd64/arm64 to the corresponding Debian architecture fields and include package descriptions/licenses.
 - Verify staged files against the inventory and compare Go binary bytes with the pinned profiler artifact.
