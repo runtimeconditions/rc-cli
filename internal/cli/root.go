@@ -55,6 +55,10 @@ func Execute(ctx context.Context, args []string, build BuildInfo, streams IOStre
 	if err == nil {
 		return 0
 	}
+	var backendExit profilerExitError
+	if errors.As(err, &backendExit) {
+		return int(backendExit)
+	}
 	fmt.Fprintf(streams.ErrOut, "rc: %v\n", err)
 	if errors.Is(err, context.Canceled) {
 		return 130
@@ -95,7 +99,7 @@ func NewRootCommand(build BuildInfo, streams IOStreams) *cobra.Command {
 	root.SetErr(streams.ErrOut)
 	root.SetVersionTemplate("{{printf \"%s %s (%s)\\n\" .Name .Version (index .Annotations \"commit\")}}")
 	root.SetFlagErrorFunc(func(_ *cobra.Command, err error) error { return usageError{err} })
-	root.AddCommand(newVersionCommand(build), newCompletionCommand())
+	root.AddCommand(newVersionCommand(build), newCompletionCommand(), newProfileCommand())
 	root.InitDefaultHelpCmd()
 	for _, cmd := range root.Commands() {
 		if cmd.Name() == "help" {
@@ -137,11 +141,16 @@ func newVersionCommand(build BuildInfo) *cobra.Command {
 				_, err := fmt.Fprintf(cmd.OutOrStdout(), "rc %s (%s)\n", build.Version, build.Commit)
 				return err
 			case "yaml":
+				components, err := goProfilerComponents()
+				if err != nil {
+					return err
+				}
 				document := struct {
-					CLI       BuildInfo `yaml:"cli"`
-					GoVersion string    `yaml:"goVersion"`
-					Platform  string    `yaml:"platform"`
-				}{build, runtime.Version(), runtime.GOOS + "/" + runtime.GOARCH}
+					CLI        BuildInfo            `yaml:"cli"`
+					GoVersion  string               `yaml:"goVersion"`
+					Platform   string               `yaml:"platform"`
+					Components []goProfilerIdentity `yaml:"components"`
+				}{build, runtime.Version(), runtime.GOOS + "/" + runtime.GOARCH, components}
 				encoder := yaml.NewEncoder(cmd.OutOrStdout())
 				encoder.SetIndent(2)
 				if err := encoder.Encode(document); err != nil {
