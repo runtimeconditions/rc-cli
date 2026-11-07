@@ -23,12 +23,14 @@ type profilerExitError int
 func (e profilerExitError) Error() string { return fmt.Sprintf("profiler exited with status %d", e) }
 
 type goProfilerIdentity struct {
-	Name    string `yaml:"name"`
-	Path    string `yaml:"path"`
-	Origin  string `yaml:"origin"`
-	Version string `yaml:"version,omitempty"`
-	Commit  string `yaml:"commit,omitempty"`
-	SHA256  string `yaml:"sha256"`
+	Name      string `yaml:"name"`
+	Path      string `yaml:"path,omitempty"`
+	Origin    string `yaml:"origin"`
+	Version   string `yaml:"version,omitempty"`
+	Commit    string `yaml:"commit,omitempty"`
+	SHA256    string `yaml:"sha256,omitempty"`
+	Module    string `yaml:"module,omitempty"`
+	ModuleSum string `yaml:"moduleSum,omitempty"`
 }
 
 type goProfilerAsset struct {
@@ -53,8 +55,8 @@ var errGoProfilerMissing = errors.New("Go profiler unavailable; install the comp
 func newProfileCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "profile [go] [profiler arguments...]",
-		Short: "Generate profiles with the Go profiler by default",
-		Long: "Generate profiles with the bundled Go profiler. Go analysis requires a working Go toolchain.\n" +
+		Short: "Generate profiles with the built-in Go profiler",
+		Long: "Generate profiles with the Go profiler linked into rc. Go analysis requires a working Go toolchain.\n" +
 			"Arguments after go, or an unqualified Go operation, pass unchanged to the profiler.",
 		Example:            "  rc profile generate -dir ./service\n  rc profile go generate -dir ./service\n  rc profile go --help",
 		DisableFlagParsing: true,
@@ -89,6 +91,9 @@ func newProfileCommand() *cobra.Command {
 }
 
 func findGoProfiler() (goProfilerIdentity, error) {
+	if os.Getenv("RC_GO_PROFILER_BIN") == "" {
+		return linkedGoProfilerIdentity(), nil
+	}
 	self, err := os.Executable()
 	if err != nil {
 		return goProfilerIdentity{}, err
@@ -201,6 +206,9 @@ func identifyGoProfiler(path, self, origin string) (goProfilerIdentity, error) {
 }
 
 func runGoProfiler(ctx context.Context, path string, args []string, streams IOStreams) error {
+	if path == "" {
+		return runLinkedGoProfiler(ctx, args, streams)
+	}
 	cmd := exec.CommandContext(ctx, path, args...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = streams.In, streams.Out, streams.ErrOut
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
