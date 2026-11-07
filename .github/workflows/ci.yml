@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_GO_VERSION: '1.26.5'
+  ANALYSIS_GO_VERSION: '1.25.0'
+  GOTOOLCHAIN: local
+  GOWORK: 'off'
+  GOFLAGS: -mod=readonly
+
+jobs:
+  check:
+    name: ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            goos: linux
+            goarch: amd64
+          - runner: ubuntu-24.04-arm
+            goos: linux
+            goarch: arm64
+          - runner: macos-15-intel
+            goos: darwin
+            goarch: amd64
+          - runner: macos-15
+            goos: darwin
+            goarch: arm64
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Set up the pinned build toolchain
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: ${{ env.BUILD_GO_VERSION }}
+          cache-dependency-path: |
+            go.sum
+            testdata/ci/go-project/go.sum
+      - name: Verify toolchain, platform, and formatting
+        env:
+          EXPECTED_GOOS: ${{ matrix.goos }}
+          EXPECTED_GOARCH: ${{ matrix.goarch }}
+        run: |
+          test "$(go env GOVERSION)" = "go$BUILD_GO_VERSION"
+          test "$(go env GOHOSTOS)" = "$EXPECTED_GOOS"
+          test "$(go env GOHOSTARCH)" = "$EXPECTED_GOARCH"
+          unformatted=$(gofmt -l .)
+          if [[ -n "$unformatted" ]]; then
+            printf '%s\n' "$unformatted"
+            exit 1
+          fi
+      - name: Run race tests and static checks
+        run: |
+          go test -race ./...
+          go vet ./...
+          go mod verify
+      - name: Build the CLI and smoke harness
+        env:
+          CI_VERSION: ci
+          CI_COMMIT: ${{ github.sha }}
+        run: |
+          CGO_ENABLED=0 go run ./scripts/build.go \
+            --output "$RUNNER_TEMP/rc-ci/rc" \
+            --version "$CI_VERSION" --commit "$CI_COMMIT"
+          CGO_ENABLED=0 go build -trimpath -o "$RUNNER_TEMP/rc-ci-smoke" ./scripts/ci-smoke.go
+      - name: Select the profiler's Go analysis toolchain
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: ${{ env.ANALYSIS_GO_VERSION }}
+          cache: false
+      - name: Verify the isolated installed executable
+        env:
+          CI_COMMIT: ${{ github.sha }}
+        run: |
+          test "$(go env GOVERSION)" = "go$ANALYSIS_GO_VERSION"
+          "$RUNNER_TEMP/rc-ci-smoke" \
+            --rc "$RUNNER_TEMP/rc-ci/rc" \
+            --fixture "$GITHUB_WORKSPACE/testdata/ci/go-project" \
+            --version ci --commit "$CI_COMMIT" \
+            --go-version "go$ANALYSIS_GO_VERSION"
+      - name: Verify tracked files were not rewritten
+        run: git diff --exit-code -- .
