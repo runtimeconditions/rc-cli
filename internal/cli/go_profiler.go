@@ -3,15 +3,15 @@ package cli
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime/debug"
-	"strings"
 
 	"github.com/runtimeconditions/go-rc-profiler/extensioncheck"
 	"github.com/runtimeconditions/go-rc-profiler/extractor"
+	"github.com/spf13/cobra"
 	"golang.org/x/mod/modfile"
 )
 
@@ -33,93 +33,125 @@ func linkedGoProfilerIdentity() goProfilerIdentity {
 	return identity
 }
 
-// The Go profiler is called as a library. A working Go toolchain is still used
-// by that library to inspect the workload; no profiler executable is required.
-func runLinkedGoProfiler(ctx context.Context, args []string, streams IOStreams) error {
-	operation := "generate"
-	if len(args) > 0 {
-		switch args[0] {
-		case "--version", "version":
-			identity := linkedGoProfilerIdentity()
-			_, err := fmt.Fprintf(streams.Out, "%s %s (linked into rc)\n", identity.Name, identity.Version)
-			return err
-		case "generate", "validate-extension", "validate-extensions":
-			operation, args = args[0], args[1:]
-		default:
-			if !strings.HasPrefix(args[0], "-") {
-				return usageError{fmt.Errorf("unknown Go profiler command %q", args[0])}
+type goProfilerAPI struct {
+	Extract  func(string, extractor.GeneratedOptions) (map[string]any, error)
+	Marshal  func(map[string]any) ([]byte, error)
+	Validate func(context.Context, string, []string) ([]extensioncheck.ImportedGoPackage, error)
+}
+
+func linkedGoProfilerAPI() goProfilerAPI {
+	return goProfilerAPI{
+		Extract: extractor.ExtractGeneratedDir, Marshal: extractor.MarshalProfileYAML,
+		Validate: extensioncheck.ValidateImportedGoPackages,
+	}
+}
+
+type goGenerateOptions struct {
+	Directory string
+	Output    string
+	Identity  extractor.GeneratedOptions
+}
+
+func newGoGenerateCommand(api goProfilerAPI) *cobra.Command {
+	var options goGenerateOptions
+	cmd := &cobra.Command{
+		Use: "generate", Short: "Generate a validated profile from Go declarations",
+		Args: usageArgs(cobra.NoArgs), ValidArgsFunction: cobra.NoFileCompletions,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return generateGoProfile(cmd.Context(), options, api, cmd.OutOrStdout())
+		},
+	}
+	flags := cmd.Flags()
+	flags.StringVar(&options.Directory, "dir", ".", "directory containing Go source declarations")
+	flags.StringVar(&options.Identity.Name, "name", "", "profile metadata.name")
+	flags.StringVar(&options.Identity.WorkloadURI, "workload-uri", "", "workload.uri")
+	flags.StringVar(&options.Identity.WorkloadVersion, "workload-version", "dev", "workload.version")
+	flags.StringVar(&options.Output, "out", "", "output file path; defaults to stdout")
+	return cmd
+}
+
+func newGoValidateCommand(api goProfilerAPI, single bool) *cobra.Command {
+	var directory, packagePath string
+	cmd := &cobra.Command{
+		Use: "validate-extensions", Short: "Validate imported Go binding packages",
+		Args: usageArgs(cobra.NoArgs), ValidArgsFunction: cobra.NoFileCompletions,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if err := cmd.Context().Err(); err != nil {
+				return err
 			}
-		}
+			absolute, err := filepath.Abs(directory)
+			if err != nil {
+				return err
+			}
+			var packages []string
+			if single {
+				packages = []string{packagePath}
+			}
+			if _, err := api.Validate(cmd.Context(), absolute, packages); err != nil {
+				return err
+			}
+			_, err = fmt.Fprintln(cmd.ErrOrStderr(), "runtimeconditions: generated binding structures validated")
+			return err
+		},
 	}
-	flags := flag.NewFlagSet("rc profile go "+operation, flag.ContinueOnError)
-	flags.SetOutput(streams.ErrOut)
-	dir := flags.String("dir", ".", "directory containing Go source declarations")
-	var name, uri, version, output, packagePath string
-	if operation == "generate" {
-		flags.StringVar(&name, "name", "", "profile metadata.name")
-		flags.StringVar(&uri, "workload-uri", "", "workload.uri")
-		flags.StringVar(&version, "workload-version", "dev", "workload.version")
-		flags.StringVar(&output, "out", "", "output file path; defaults to stdout")
-	}
-	if operation == "validate-extension" {
-		flags.StringVar(&packagePath, "package", "", "import path of a generated extension binding package")
-	}
-	if err := flags.Parse(args); err != nil {
-		if errors.Is(err, flag.ErrHelp) {
+	cmd.Flags().StringVar(&directory, "dir", ".", "Go workload module directory")
+	if single {
+		cmd.Use, cmd.Short = "validate-extension", "Validate an imported Go binding package"
+		cmd.Flags().StringVar(&packagePath, "package", "", "import path of a generated extension binding package")
+		_ = cmd.MarkFlagRequired("package")
+		cmd.PreRunE = func(_ *cobra.Command, _ []string) error {
+			if packagePath == "" {
+				return usageError{errors.New("--package is required")}
+			}
 			return nil
 		}
-		return profilerExitError(2) // flag.Parse already printed its diagnostic.
 	}
-	if flags.NArg() != 0 {
-		fmt.Fprintf(streams.ErrOut, "unexpected positional arguments: %s\n", strings.Join(flags.Args(), " "))
-		return profilerExitError(2)
-	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	directory, err := filepath.Abs(*dir)
-	if err != nil {
-		return err
-	}
-	if operation != "generate" {
-		var packages []string
-		if operation == "validate-extension" {
-			if packagePath == "" {
-				return errors.New("-package is required")
-			}
-			packages = []string{packagePath}
-		}
-		if _, err := extensioncheck.ValidateImportedGoPackages(ctx, directory, packages); err != nil {
+	return cmd
+}
+
+func newGoVersionCommand() *cobra.Command {
+	return &cobra.Command{
+		Use: "version", Short: "Show the linked Go profiler version",
+		Args: usageArgs(cobra.NoArgs), ValidArgsFunction: cobra.NoFileCompletions,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			identity := linkedGoProfilerIdentity()
+			_, err := fmt.Fprintf(cmd.OutOrStdout(), "%s %s (linked into rc)\n", identity.Name, identity.Version)
 			return err
-		}
-		_, err := fmt.Fprintln(streams.ErrOut, "runtimeconditions: generated binding structures validated")
+		},
+	}
+}
+
+func generateGoProfile(ctx context.Context, options goGenerateOptions, api goProfilerAPI, out io.Writer) error {
+	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if name == "" {
-		name = filepath.Base(directory)
+	directory, err := filepath.Abs(options.Directory)
+	if err != nil {
+		return err
 	}
-	if uri == "" {
-		uri = goWorkloadURI(directory)
+	if options.Identity.Name == "" {
+		options.Identity.Name = filepath.Base(directory)
 	}
-	// The current upstream extraction API does not accept a context. Check
-	// cancellation before and after it without leaving analysis in a goroutine.
-	profile, err := extractor.ExtractGeneratedDir(directory, extractor.GeneratedOptions{
-		Name: name, WorkloadURI: uri, WorkloadVersion: version,
-	})
+	if options.Identity.WorkloadURI == "" {
+		options.Identity.WorkloadURI = goWorkloadURI(directory)
+	}
+	// The upstream extraction API has no context parameter. Check cancellation
+	// around the call without leaving analysis running in a goroutine.
+	profile, err := api.Extract(directory, options.Identity)
 	if err != nil {
 		return err
 	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	data, err := extractor.MarshalProfileYAML(profile)
+	data, err := api.Marshal(profile)
 	if err != nil {
 		return err
 	}
-	if output != "" {
-		return writeGoProfileAtomically(output, data)
+	if options.Output != "" {
+		return writeGoProfileAtomically(options.Output, data)
 	}
-	_, err = streams.Out.Write(data)
+	_, err = out.Write(data)
 	return err
 }
 

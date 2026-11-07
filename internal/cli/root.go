@@ -55,10 +55,6 @@ func Execute(ctx context.Context, args []string, build BuildInfo, streams IOStre
 	if err == nil {
 		return 0
 	}
-	var backendExit profilerExitError
-	if errors.As(err, &backendExit) {
-		return int(backendExit)
-	}
 	fmt.Fprintf(streams.ErrOut, "rc: %v\n", err)
 	if errors.Is(err, context.Canceled) {
 		return 130
