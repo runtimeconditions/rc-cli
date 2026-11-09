@@ -188,15 +188,19 @@ Windows and RPM channels follow after the initial package contract; do not adver
 
 - Tag rc-cli independently; pin component locks, Cobra, build Go, packaging tools, and Actions by full SHA.
 - For tag-triggered release builds, validate the vMAJOR.MINOR.PATCH tag (including prereleases) and
-  checked-out commit, then embed GITHUB_REF_NAME and GITHUB_SHA as linker values:
+  checked-out commit, then use the schema-aware build helper to embed GITHUB_REF_NAME,
+  GITHUB_SHA, and the verified core profile schema as linker values:
 
   ~~~sh
-  mkdir -p dist
-  go build -trimpath \
-    -ldflags "-X main.version=${GITHUB_REF_NAME} -X main.commit=${GITHUB_SHA}" \
-    -o dist/rc ./cmd/rc
+  go run ./scripts/build.go --output dist/rc \
+    --version "${GITHUB_REF_NAME}" --commit "${GITHUB_SHA}"
   ~~~
 
+  The helper downloads the pinned schema and verifies its SHA-256 before embedding it.
+  For an already downloaded artifact, add --core-schema /path/to/runtimeconditions.profile.schema.yaml;
+  the same checksum verification applies. Plain go build/go install omit the required schema value,
+  causing profile generation to fail with "installed profiler has no verified core profile schema".
+  Local builds use go run ./scripts/build.go --output ./rc, with optional version/commit flags.
   Verify rc version, rc --version, and rc version --output yaml report the release tag and source commit.
   Reject dev/unknown metadata in release artifacts; ordinary local builds retain those defaults.
 - Assemble locked upstream bytes and the verified CLI once; create a complete inventory and package without rebuilding.
