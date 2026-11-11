@@ -1,4 +1,7 @@
 apiVersion: runtimeconditions.io/cli-components/v1alpha1
+extensions:
+  repository: https://github.com/runtimeconditions/extensions.git
+  commit: dd96ddaebb0d29d882212d6ccc10c130f3ff2ddf
 goProfiler:
   version: v0.6.0
   commit: 4dc71655a74839fdee5fc5226071e1cda39c2234
