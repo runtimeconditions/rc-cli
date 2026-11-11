@@ -11,7 +11,7 @@ vendor: Runtime Conditions
 homepage: https://github.com/runtimeconditions/rc-cli
 license: MIT
 contents:
-  - src: ${PACKAGE_ROOT}/usr
+  - src: usr
     dst: /usr
     type: tree
 umask: 0o022

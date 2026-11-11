@@ -145,13 +145,15 @@ def main():
                 archive_hashes[f"{goos.upper()}_{goarch.upper()}_SHA256"] = sha256(archive_path.read_bytes())
 
                 if goos == "linux":
-                    package_root = work / target / "package-root/usr"
-                    copy_file(binary, package_root / "bin/rc", 0o755)
-                    shutil.copytree(prefix / "share", package_root / "share")
-                    env.update(GOARCH=goarch, PACKAGE_VERSION=match.group(0).lstrip("v"), PACKAGE_ROOT=str(work / target / "package-root"))
+                    package_root = work / target / "package-root"
+                    usr_root = package_root / "usr"
+                    copy_file(binary, usr_root / "bin/rc", 0o755)
+                    shutil.copytree(prefix / "share", usr_root / "share")
+                    env.update(GOARCH=goarch, PACKAGE_VERSION=match.group(0).lstrip("v"))
+                    nfpm_config = Path("distribution/nfpm.yaml").resolve()
                     for packager in ("deb", "rpm"):
-                        run(["nfpm", "package", "--config", "distribution/nfpm.yaml", "--packager", packager,
-                             "--target", str(args.output)], env=env)
+                        run(["nfpm", "package", "--config", str(nfpm_config), "--packager", packager,
+                             "--target", str(args.output.resolve())], cwd=package_root, env=env)
 
     template = Path("distribution/homebrew/rc-cli.rb").read_text()
     rendered = template.replace("{{VERSION}}", args.version[1:])
