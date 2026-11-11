@@ -32,6 +32,58 @@ go run ./scripts/build.go --output ./rc \
 The local schema must match the helper's pinned checksum. Release builds also
 pass `--version <release-tag>` and `--commit <source-commit>` to embed provenance.
 
+## Built-in Go profiler commands
+
+`rc profile` uses the built-in Go profiler by default. The same commands are
+available under `rc profile go`, with identical flags and behavior:
+
+| Command | Purpose |
+| --- | --- |
+| `rc profile generate` | Generate a validated profile from Go binding declarations. |
+| `rc profile validate-extensions` | Validate all imported generated binding packages. |
+| `rc profile validate-extension` | Validate one imported binding package selected with `--package`. |
+| `rc profile version` | Show the linked Go profiler version. |
+
+For command help:
+
+```sh
+./rc profile --help
+./rc profile go --help
+./rc profile go generate --help
+```
+
+Generate a profile using the default or explicit Go route:
+
+```sh
+./rc profile generate --dir /path/to/go/workload --out profile.yaml
+
+./rc profile go generate \
+  --dir /path/to/go/workload \
+  --name my-workload \
+  --workload-uri https://example.com/my-workload \
+  --workload-version 1.0.0 \
+  --out profile.yaml
+```
+
+`--dir` defaults to the current directory. Generation writes YAML to stdout
+when `--out` is omitted. The default profile name is the workload directory's
+basename; the default workload URI is its enclosing Go module path, falling
+back to the directory path. The workload version defaults to `dev`.
+
+Validate imported bindings or inspect the profiler version:
+
+```sh
+./rc profile go validate-extensions --dir /path/to/go/workload
+./rc profile go validate-extension \
+  --dir /path/to/go/workload \
+  --package runtimeconditions.io/x/rc/common
+./rc profile go version
+```
+
+Profiling analyzes declarations without executing the workload. Resolve the
+workload's Go binding dependencies before running these commands. A failed
+generation leaves an existing `--out` file unchanged.
+
 ## Binding commands
 
 ```sh
