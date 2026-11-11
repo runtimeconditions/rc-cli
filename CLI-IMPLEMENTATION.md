@@ -1,7 +1,8 @@
 # CLI implementation plan
 
-Status: implementation sequence, updated 2026-11-09. Native Go profiling is implemented;
-binding library integration and distribution remain staged work.
+Status: implementation sequence, updated 2026-11-11. Native Go profiling and binding
+commands are implemented, with CI coverage for the relocated CLI and shared YAML resources.
+System-package distribution, add-ons, and upstream workflow migration remain planned.
 Repository: github.com/runtimeconditions/rc-cli; executable and command name: `rc`.
 System package and Homebrew formula name: `rc-cli`; releases use independent `vMAJOR.MINOR.PATCH` tags.
 This plan implements [CLI-PLANNING.md](../extensions/tooling/extension-bindings/CLI-PLANNING.md).
@@ -23,14 +24,16 @@ These sibling links assume the repositories share a parent directory; published 
 
 Use Cobra for native commands and direct Go library calls for binding operations and Go profiling.
 Import the orchestrator, normalizer, and Go emitter as a resolvable, pinned dependency set.
-Their current workspace replace directives do not provide downstream dependencies; prepare upstream
-module versions before linking them here. Keep binding logic in extensions and retain its standalone CLI.
+Pin the three nested binding modules to the same full extensions commit recorded in
+distribution/components.lock.yaml. go.mod explicitly requires those versions and excludes
+the normalizer/emitter v0.0.0 workspace placeholders; local replace directives are not
+propagated into rc-cli. Keep binding logic in extensions and retain its standalone CLI.
 Subprocesses remain appropriate for optional language backends and native language toolchains.
 
 ~~~text
 cmd/rc/main.go                         # signals, streams, root execution, process exit
-internal/cli/{root,bindings,profile,plugins,doctor,version}.go
-internal/bindings/adapter.go           # maps typed Cobra options to orchestrator.Execute
+internal/cli/{root,profile,plugins,doctor,version}.go
+internal/cli/bindings.go              # Cobra options and direct orchestrator.Execute calls
 internal/plugins/{descriptor,discover,compatibility}.go
 internal/process/runner.go             # invocation, exit status, cancellation
 internal/install/layout.go            # archive, Homebrew, and Linux installation roots
@@ -79,9 +82,12 @@ rc doctor [--language go|python|java|...] [--output yaml]
 
 ## 4. Binding commands and migration
 
-Register all eight binding operations as Cobra children with command-specific flags and RunE handlers.
-The adapter calls orchestrator.Execute with context, absolute caller directory, operation, Options,
-and output streams. It does not parse arguments again or invoke a separate binding executable.
+All eight binding operations are Cobra children with command-specific flags and RunE handlers.
+bindings.go calls orchestrator.Execute with context, absolute caller directory, operation,
+Options, and output streams. There is no separate adapter package or second argument parser.
+Cobra maintains the command interface in rc-cli; the shared library owns operation behavior.
+Parity tests compare command and flag names against upstream Run help, defaults against
+DefaultOptions with declared linked-library overrides, and results against Execute.
 Initialize native-tool defaults with orchestrator.DefaultOptions, then apply Cobra values and declared
 installed-library defaults. Preserve explicitly supplied values, including empty tool selections.
 Use repeatable string-array flags without comma splitting; preserve values containing spaces or commas.
@@ -103,8 +109,11 @@ Link the versioned binding modules and call exported normalizer and Go emitter f
 Provide the approved schema bundle and required resources without requiring an extensions checkout.
 Keep Python tooling optional and require it only for Python targets. Missing upstream module versions
 or installed resources remain explicit prerequisites; do not build arbitrary workspace tools at runtime.
-The initial upstream Execute extraction retains existing executable-based tools; direct Go execution,
-resource packaging, and linked identities must be completed before installed CLI acceptance.
+rc-cli selects direct Go normalizer/emitter execution and linked profiler identities by default.
+The normalizer/emitter executable flags are retained for interface parity; nonempty selections
+conflict with the linked-library mode. Explicit --go-profiler selects a standalone artifact,
+including preserving an explicitly empty selection as an error when an artifact is required.
+Help and completion do not perform resource discovery or require a profiler identity.
 Preserve --toolchain-lock checks and report actual orchestrator, emitter, normalizer, and profiler identities.
 Linked profiler identities use their module version and dependency checksum; executable identities retain
 their artifact SHA-256. Update schemas and their consumers before emitting the new identity form.
@@ -114,7 +123,24 @@ After parity checks, extensions' shared binding-tools action may adopt a pinned 
 with explicit resource and tool selections matching its lock.
 Keep generation.py and publish.py as the owners of bot commits and publication preflight.
 Retain extensions' standalone cmd/rc entry point and generation workflows independently of rc-cli.
-Standalone Go profiler files remain supported through explicit flags and environment selection.
+Standalone Go profiler files remain supported by rc bindings through --go-profiler.
+The independent extensions CLI retains its existing flag and environment selections.
+
+CI checks out the locked extensions revision during the build and verifies that all three
+Go dependency origins match it. It copies model/*.schema.yaml into the staged
+share/rc/extension-bindings/model directory and generates checksums in the build output.
+Schemas are not a Go module or a separately versioned archive. Installed lookup resolves
+the executable's symlinks before finding this directory; --tooling-dir overrides it.
+Local executable-only builds require --tooling-dir for binding commands.
+
+CI downloads the core schema using its component-lock URL and verifies its checksum before
+passing the same file to the build helper and binding smoke test. Go profiling embeds that
+verified core schema; binding normalization accepts --core-schema or upstream resolution.
+Offline binding operations also need local definitions and resolved native dependencies.
+Linked normalizer/emitter provenance records each component's name/version and the host
+executable SHA-256. Rebuilding rc therefore changes these identities and the model digest.
+The linked Go profiler uses its independently versioned module and Go dependency checksum.
+go-rc-profiler v0.6.1 supports this identity and the existing standalone artifact form.
 
 ## 5. Default Go profiler integration
 
@@ -154,8 +180,9 @@ cannot assume access to its distributions. Resolve that backend requirement befo
 Define optional packages rc-profiler-python/java/rust/node/ruby in the same OS channels as rc-cli.
 Add-ons declare their own compatible runtimes; SDK installation continues through pip, Maven, npm, etc.
 Initial CLI plugin commands list and inspect installations; package managers own installation and upgrades.
-RC_GO_PROFILER_BIN and --go-profiler retain their standalone binding-tool meaning; they do not
-replace the profiler linked into native rc profile commands.
+The extensions CLI retains RC_GO_PROFILER_BIN for standalone binding-tool selection.
+rc bindings uses its linked profiler by default and accepts explicit --go-profiler selection;
+neither setting replaces the profiler linked into native rc profile commands.
 
 ## 7. Process behavior and diagnostics
 
@@ -181,7 +208,9 @@ Ship install-layout metadata for both profiles; relocating the tree must preserv
 Use rc-cli as the package/formula name and rc as the executable; do not rename the accepted command.
 Do not declare replacement of unrelated distro packages. Package removal deletes only its owned files.
 Go tooling is a documented analysis prerequisite, not an unconditional dependency of commands like help.
-The installed bundle runs without source checkouts and without bootstrap downloads at first invocation.
+Installed tooling and shared contracts require no source checkout or bootstrap download.
+Extension definitions and normalization's core-schema inputs retain upstream resolution rules;
+supply local definitions and --core-schema when those inputs must remain offline.
 
 Initial proposed matrix: macOS and Linux amd64/arm64; Debian 12/13 and Ubuntu 24.04/26.04 for APT.
 Declare tested macOS minimum versions and any libc requirements in platforms.yaml before publishing.
@@ -196,7 +225,7 @@ Windows and RPM channels follow after the initial package contract; do not adver
   GITHUB_SHA, and the verified core profile schema as linker values:
 
   ~~~sh
-  go run ./scripts/build.go --output dist/rc \
+  go run ./scripts/build.go --output dist/bin/rc \
     --version "${GITHUB_REF_NAME}" --commit "${GITHUB_SHA}"
   ~~~
 
@@ -207,6 +236,8 @@ Windows and RPM channels follow after the initial package contract; do not adver
   Local builds use go run ./scripts/build.go --output ./rc, with optional version/commit flags.
   Verify rc version, rc --version, and rc version --output yaml report the release tag and source commit.
   Reject dev/unknown metadata in release artifacts; ordinary local builds retain those defaults.
+  The helper builds the executable; staging the matching YAML resources remains a separate
+  build step, as implemented in CI. A complete package includes both bin/rc and share/rc.
 - Build once from pinned modules and verified resources; inventory the resulting CLI and package without rebuilding.
 - Produce platform tar.gz archives, SHA256SUMS, component YAML, and .deb packages using pinned nFPM.
   Map Go amd64/arm64 to the corresponding Debian architecture fields and include package descriptions/licenses.
@@ -232,7 +263,7 @@ Windows and RPM channels follow after the initial package contract; do not adver
 | 1. CLI foundation | Go module, Cobra root/version/completion, injectable dependencies; clean independent build. |
 | 2. Go default | Pinned linked profiler, native Cobra commands, identical default/explicit Go results and verified core schema. |
 | 3. Add-on contract | Strict YAML schema, configuration/discovery, compatibility errors, plugin list and doctor. |
-| 4. Binding adapter | Versioned library dependencies, typed execution, installed resources and accurate identities; all eight commands preserve behavior. |
+| 4. Binding commands | Implemented: pinned libraries, direct typed execution, staged YAML resources, actual identities, and all eight Cobra operations. |
 | 5. Packaging | Relocatable archives, Homebrew formula, .deb installs/upgrades/removals on the stated matrix. |
 | 6. Workflow migration | Extensions helpers may use a pinned common CLI after parity; standalone generation remains supported. |
 | 7. Publication | Protected release, tap/APT promotion, documented installation, checksums and rollback procedure. |
@@ -242,6 +273,13 @@ native/optional help, error/exit propagation, cancellation, duplicate IDs, missi
 explicit override selection, and stdout byte preservation using controlled subprocess fixtures.
 Compare generated Go profiles and negative-case behavior with the linked profiler API.
 Compare binding YAML, target defaults, lock failures, cleanup, atomic updates, and output paths with the old CLI.
+The CI binding smoke test relocates the complete staged prefix and copies the neutral YAML
+fixture into an isolated project. Only Go is available on its subprocess PATH. All eight
+binding operations run, with initial release planning using a local read-only GitHub API
+fixture. A generated module is installed through a private file proxy and then profiled by
+both native Go command routes. Altered-source checks, nonempty generation destinations,
+and invalid declarations must fail without replacing existing output. Generated package
+trees, archives, profiles, and caches remain temporary build outputs.
 Install in clean VMs/containers from complete artifacts, away from checkout paths and without a profiler on PATH.
 Run a Go workload using rc-cli alone plus the documented Go toolchain and resolved workload bindings.
 Check that no Python/JVM is required; optional-language errors identify the add-on/runtime to install.

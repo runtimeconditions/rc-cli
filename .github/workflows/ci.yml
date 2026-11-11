@@ -67,6 +67,7 @@ jobs:
           import re
           import shutil
           import subprocess
+          import urllib.request
           import yaml
 
           def output(*args):
@@ -123,6 +124,12 @@ jobs:
           metadata = prefix / "share/rc-cli"
           metadata.mkdir(parents=True)
           shutil.copyfile(lock_path, metadata / lock_path.name)
+          core = yaml.safe_load(lock_path.read_text())["goProfiler"]["coreSchema"]
+          with urllib.request.urlopen(core["url"], timeout=60) as response:
+              data = response.read(64 * 1024 * 1024 + 1)
+          if hashlib.sha256(data).hexdigest() != core["sha256"]:
+              raise SystemExit("core schema checksum differs from the component lock")
+          (Path(os.environ["RUNNER_TEMP"]) / "rc-ci-core.schema.yaml").write_bytes(data)
           PY
       - name: Verify toolchain, platform, and formatting
         env:
@@ -149,6 +156,7 @@ jobs:
         run: |
           CGO_ENABLED=0 go run ./scripts/build.go \
             --output "$RUNNER_TEMP/rc-ci/bin/rc" \
+            --core-schema "$RUNNER_TEMP/rc-ci-core.schema.yaml" \
             --version "$CI_VERSION" --commit "$CI_COMMIT"
           CGO_ENABLED=0 go build -trimpath -o "$RUNNER_TEMP/rc-ci-smoke" ./scripts/ci-smoke.go
       - name: Select the profiler's Go analysis toolchain
@@ -165,6 +173,13 @@ jobs:
             --rc "$RUNNER_TEMP/rc-ci/bin/rc" \
             --fixture "$GITHUB_WORKSPACE/testdata/ci/go-project" \
             --version ci --commit "$CI_COMMIT" \
+            --go-version "go$ANALYSIS_GO_VERSION"
+      - name: Verify generated bindings and profiling with the relocated CLI
+        run: |
+          "$RUNNER_TEMP/rc-ci-python/bin/python" scripts/ci-bindings-smoke.py \
+            --prefix "$RUNNER_TEMP/rc-ci" \
+            --fixture "$GITHUB_WORKSPACE/testdata/ci/bindings/runtimeconditions.extension.yaml" \
+            --core-schema "$RUNNER_TEMP/rc-ci-core.schema.yaml" \
             --go-version "go$ANALYSIS_GO_VERSION"
       - name: Verify staged binding resources against the pinned checkout
         run: |
