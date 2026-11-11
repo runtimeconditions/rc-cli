@@ -1,0 +1,20 @@
+apiVersion: runtimeconditions.io/cli-platforms/v1alpha1
+kind: RuntimeConditionsCLIPlatforms
+packageName: rc-cli
+command: rc
+targets:
+  - os: darwin
+    architectures: [amd64, arm64]
+    artifacts: [tar.gz, homebrew]
+  - os: linux
+    architectures: [amd64, arm64]
+    artifacts: [tar.gz, deb, rpm]
+    libc: glibc
+packagePaths:
+  homebrew: "<prefix>/bin/rc and <prefix>/share/rc"
+  deb: /usr/bin/rc and /usr/share/rc
+  rpm: /usr/bin/rc and /usr/share/rc
+analysisRequirement: A Go toolchain is required to profile Go workloads.
+distributions:
+  deb: pending-acceptance-matrix
+  rpm: pending-acceptance-matrix

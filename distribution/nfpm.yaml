@@ -1,0 +1,17 @@
+name: rc-cli
+arch: ${GOARCH}
+platform: linux
+version: ${PACKAGE_VERSION}
+release: 1
+section: utils
+priority: optional
+maintainer: Runtime Conditions <maintainers@runtimeconditions.io>
+description: Runtime Conditions command line and binding resources
+vendor: Runtime Conditions
+homepage: https://github.com/runtimeconditions/rc-cli
+license: MIT
+contents:
+  - src: ${PACKAGE_ROOT}/usr
+    dst: /usr
+    type: tree
+umask: 0o022
