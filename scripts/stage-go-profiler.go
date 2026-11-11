@@ -32,6 +32,10 @@ type asset struct {
 
 type componentLock struct {
 	APIVersion string `yaml:"apiVersion"`
+	Extensions struct {
+		Repository string `yaml:"repository"`
+		Commit     string `yaml:"commit"`
+	} `yaml:"extensions"`
 	GoProfiler struct {
 		Version    string            `yaml:"version"`
 		Commit     string            `yaml:"commit"`

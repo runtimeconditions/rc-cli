@@ -55,6 +55,82 @@ jobs:
           cache-dependency-path: |
             go.sum
             testdata/ci/go-project/go.sum
+      - name: Prepare pinned binding libraries and schema files
+        run: |
+          python3 -m venv "$RUNNER_TEMP/rc-ci-python"
+          "$RUNNER_TEMP/rc-ci-python/bin/python" -m pip install --disable-pip-version-check PyYAML==6.0.3
+          "$RUNNER_TEMP/rc-ci-python/bin/python" - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import shutil
+          import subprocess
+          import urllib.request
+          import yaml
+
+          def output(*args):
+              return subprocess.check_output(args, text=True).strip()
+
+          lock_path = Path("distribution/components.lock.yaml")
+          source = yaml.safe_load(lock_path.read_text())["extensions"]
+          revision, repository = source["commit"], source["repository"]
+          if not re.fullmatch(r"[0-9a-f]{40}", revision):
+              raise SystemExit("extensions commit must be a full SHA")
+          module_repository = repository.removeprefix("https://").removesuffix(".git")
+          requirements = {
+              item["Path"]: item["Version"]
+              for item in json.loads(output("go", "mod", "edit", "-json"))["Require"]
+          }
+          modules = [
+              module_repository + "/tooling/extension-bindings/" + component
+              for component in ("normalizer", "emitters/go", "orchestrator")
+          ]
+          for module in modules:
+              version = requirements[module]
+              selected = json.loads(output("go", "list", "-m", "-json", module))
+              if selected.get("Replace") or selected["Version"] != version:
+                  raise SystemExit(f"{module}: selected dependency differs from pin")
+              downloaded = json.loads(output("go", "mod", "download", "-json", module + "@" + version))
+              origin = downloaded.get("Origin", {})
+              if origin.get("Hash") != revision or origin.get("URL", "").removesuffix(".git") != repository.removesuffix(".git"):
+                  raise SystemExit(f"{module}: module origin differs from extensions pin")
+          subprocess.run(["go", "build", *modules], check=True)
+
+          checkout = Path(os.environ["RUNNER_TEMP"]) / "rc-ci-extensions"
+          checkout.mkdir()
+          subprocess.run(["git", "init", "--quiet", str(checkout)], check=True)
+          subprocess.run(["git", "-C", str(checkout), "fetch", "--depth=1", repository, revision], check=True)
+          subprocess.run(["git", "-C", str(checkout), "checkout", "--quiet", "--detach", "FETCH_HEAD"], check=True)
+          if output("git", "-C", str(checkout), "rev-parse", "HEAD") != revision:
+              raise SystemExit("extensions checkout differs from pin")
+
+          tooling = checkout / "tooling/extension-bindings"
+          schemas = sorted((tooling / "model").glob("*.schema.yaml"))
+          if not schemas:
+              raise SystemExit("extensions checkout has no binding schemas")
+          prefix = Path(os.environ["RUNNER_TEMP"]) / "rc-ci"
+          resources = prefix / "share/rc/extension-bindings"
+          (resources / "model").mkdir(parents=True)
+          checksums = []
+          for schema in schemas:
+              if schema.is_symlink() or not schema.is_file():
+                  raise SystemExit(f"invalid schema source: {schema}")
+              relative = "model/" + schema.name
+              shutil.copyfile(schema, resources / relative)
+              checksums.append(hashlib.sha256(schema.read_bytes()).hexdigest() + "  " + relative + "\n")
+          (resources / "SHA256SUMS").write_text("".join(checksums), encoding="utf-8")
+          metadata = prefix / "share/rc-cli"
+          metadata.mkdir(parents=True)
+          shutil.copyfile(lock_path, metadata / lock_path.name)
+          core = yaml.safe_load(lock_path.read_text())["goProfiler"]["coreSchema"]
+          with urllib.request.urlopen(core["url"], timeout=60) as response:
+              data = response.read(64 * 1024 * 1024 + 1)
+          if hashlib.sha256(data).hexdigest() != core["sha256"]:
+              raise SystemExit("core schema checksum differs from the component lock")
+          (Path(os.environ["RUNNER_TEMP"]) / "rc-ci-core.schema.yaml").write_bytes(data)
+          PY
       - name: Verify toolchain, platform, and formatting
         env:
           EXPECTED_GOOS: ${{ matrix.goos }}
@@ -79,7 +155,8 @@ jobs:
           CI_COMMIT: ${{ github.sha }}
         run: |
           CGO_ENABLED=0 go run ./scripts/build.go \
-            --output "$RUNNER_TEMP/rc-ci/rc" \
+            --output "$RUNNER_TEMP/rc-ci/bin/rc" \
+            --core-schema "$RUNNER_TEMP/rc-ci-core.schema.yaml" \
             --version "$CI_VERSION" --commit "$CI_COMMIT"
           CGO_ENABLED=0 go build -trimpath -o "$RUNNER_TEMP/rc-ci-smoke" ./scripts/ci-smoke.go
       - name: Select the profiler's Go analysis toolchain
@@ -93,9 +170,47 @@ jobs:
         run: |
           test "$(go env GOVERSION)" = "go$ANALYSIS_GO_VERSION"
           "$RUNNER_TEMP/rc-ci-smoke" \
-            --rc "$RUNNER_TEMP/rc-ci/rc" \
+            --rc "$RUNNER_TEMP/rc-ci/bin/rc" \
             --fixture "$GITHUB_WORKSPACE/testdata/ci/go-project" \
             --version ci --commit "$CI_COMMIT" \
             --go-version "go$ANALYSIS_GO_VERSION"
+      - name: Verify generated bindings and profiling with the relocated CLI
+        run: |
+          "$RUNNER_TEMP/rc-ci-python/bin/python" scripts/ci-bindings-smoke.py \
+            --prefix "$RUNNER_TEMP/rc-ci" \
+            --fixture "$GITHUB_WORKSPACE/testdata/ci/bindings/runtimeconditions.extension.yaml" \
+            --core-schema "$RUNNER_TEMP/rc-ci-core.schema.yaml" \
+            --go-version "go$ANALYSIS_GO_VERSION"
+      - name: Verify staged binding resources against the pinned checkout
+        run: |
+          "$RUNNER_TEMP/rc-ci-python/bin/python" - <<'PY'
+          import hashlib
+          import os
+          from pathlib import Path
+          import subprocess
+
+          temporary = Path(os.environ["RUNNER_TEMP"])
+          checkout = temporary / "rc-ci-extensions"
+          resources = temporary / "rc-ci/share/rc/extension-bindings"
+          sources = sorted((checkout / "tooling/extension-bindings/model").glob("*.schema.yaml"))
+          expected = {}
+          for source in sources:
+              expected["model/" + source.name] = source.read_bytes()
+          actual = {path.relative_to(resources).as_posix() for path in resources.rglob("*") if path.is_file()}
+          if not expected or actual != set(expected) | {"SHA256SUMS"}:
+              raise SystemExit("staged schema inventory differs from checkout")
+          checksums = []
+          for relative, data in sorted(expected.items()):
+              if (resources / relative).read_bytes() != data:
+                  raise SystemExit(f"staged schema bytes differ: {relative}")
+              checksums.append(hashlib.sha256(data).hexdigest() + "  " + relative + "\n")
+          if (resources / "SHA256SUMS").read_text() != "".join(checksums):
+              raise SystemExit("staged schema checksums differ")
+          if (temporary / "rc-ci/share/rc-cli/components.lock.yaml").read_bytes() != Path("distribution/components.lock.yaml").read_bytes():
+              raise SystemExit("staged component lock differs")
+          if subprocess.check_output(["git", "-C", str(checkout), "status", "--porcelain"]):
+              raise SystemExit("extensions checkout was modified during the build")
+          print(f"Verified {len(expected)} unchanged schema files and their checksums")
+          PY
       - name: Verify tracked files were not rewritten
         run: git diff --exit-code -- .

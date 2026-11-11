@@ -1,0 +1,35 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsExtensionDefinition
+metadata:
+  id: https://bindings.example.test/parity:0.1.0
+  version: 0.1.0
+spec:
+  kinds:
+    - name: parity.service
+  interfaceTypes:
+    - name: stream
+      targetKind: parity.service
+  interfaceFields:
+    - name: address
+      targetKind: parity.service
+      targetType: stream
+  schemas:
+    - id: stream-address
+      description: Stream address for the installed CLI binding and profiling test.
+      appliesToKind: parity.service
+      appliesToInterfaceType: stream
+      schema:
+        type: object
+        required: [kind, interface]
+        properties:
+          kind:
+            const: parity.service
+          interface:
+            type: object
+            required: [type, address]
+            properties:
+              type:
+                const: stream
+              address:
+                type: string
+                minLength: 1
