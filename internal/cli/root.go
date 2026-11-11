@@ -95,7 +95,7 @@ func NewRootCommand(build BuildInfo, streams IOStreams) *cobra.Command {
 	root.SetErr(streams.ErrOut)
 	root.SetVersionTemplate("{{printf \"%s %s (%s)\\n\" .Name .Version (index .Annotations \"commit\")}}")
 	root.SetFlagErrorFunc(func(_ *cobra.Command, err error) error { return usageError{err} })
-	root.AddCommand(newVersionCommand(build), newCompletionCommand(), newProfileCommand())
+	root.AddCommand(newVersionCommand(build), newCompletionCommand(), newProfileCommand(), newBindingsCommand())
 	root.InitDefaultHelpCmd()
 	for _, cmd := range root.Commands() {
 		if cmd.Name() == "help" {
