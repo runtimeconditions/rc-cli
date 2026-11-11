@@ -53,3 +53,18 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" dist/release/* \
             --verify-tag --title "rc-cli $GITHUB_REF_NAME" --generate-notes
+
+  notify-homebrew:
+    needs: release
+    runs-on: ubuntu-24.04
+    environment: package-distribution
+    permissions:
+      contents: none
+    steps:
+      - name: Trigger Homebrew formula update
+        uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697 # v4.0.1
+        with:
+          token: ${{ secrets.HOMEBREW_REPO_DISPATCH_TOKEN }}
+          repository: runtimeconditions/homebrew-tools
+          event-type: rc-cli-release-published
+          client-payload: '{"tag":"${{ github.ref_name }}"}'
