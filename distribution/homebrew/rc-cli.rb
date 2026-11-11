@@ -29,10 +29,10 @@ class RcCli < Formula
 
   def install
     bin.install "bin/rc"
-    prefix.install "share"
     bash_completion.install "share/bash-completion/completions/rc"
     zsh_completion.install "share/zsh/site-functions/_rc"
     fish_completion.install "share/fish/vendor_completions.d/rc.fish"
+    prefix.install "share"
   end
 
   test do
