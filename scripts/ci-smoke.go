@@ -18,6 +18,7 @@ import (
 )
 
 const bindingModule = "runtimeconditions.io/x/rc/common"
+const envBindingModule = "runtimeconditions.io/x/rc/env"
 const profilerModule = "github.com/runtimeconditions/go-rc-profiler"
 
 type options struct{ rc, fixture, version, commit, goVersion string }
@@ -159,6 +160,7 @@ func smoke(o options) error {
 		}
 		for _, validation := range [][]string{
 			{"validate-extension", "--dir", workload, "--package", bindingModule},
+			{"validate-extension", "--dir", workload, "--package", envBindingModule},
 			{"validate-extensions", "--dir", workload},
 		} {
 			if _, err := rc(0, append(append([]string{}, route...), validation...)...); err != nil {
@@ -209,8 +211,9 @@ func checkProfile(data string) error {
 	}
 	if profile.APIVersion != "runtimeconditions.io/v1alpha1" || profile.Kind != "RuntimeConditionsProfile" ||
 		profile.Metadata.Name != "ci-fixture" || profile.Workload.URI != "https://example.com/ci-fixture" ||
-		profile.Workload.Version != "1.0.0" || len(profile.Extensions) != 1 ||
-		!strings.HasPrefix(profile.Extensions[0], "https://runtimeconditions.io/extensions/rc/common-integrations") ||
+		profile.Workload.Version != "1.0.0" || len(profile.Extensions) != 2 ||
+		profile.Extensions[0] != "https://runtimeconditions.io/extensions/rc/common-integrations:v1alpha1" ||
+		profile.Extensions[1] != "https://runtimeconditions.io/extensions/rc/env-configuration:v1alpha1" ||
 		len(profile.Conditions) != 1 || profile.Conditions[0].Kind != "cache" ||
 		profile.Conditions[0].Interface["type"] != "key_value" || profile.Conditions[0].Interface["engine"] != "redis" {
 		return fmt.Errorf("unexpected generated profile:\n%s", data)

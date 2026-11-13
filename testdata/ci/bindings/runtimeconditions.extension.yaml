@@ -1,7 +1,7 @@
 apiVersion: runtimeconditions.io/v1alpha1
 kind: RuntimeConditionsExtensionDefinition
 metadata:
-  id: https://bindings.example.test/parity:0.1.0
+  id: https://bindings.example.test/parity/0.1.0/runtimeconditions.extension.yaml
   version: 0.1.0
 spec:
   kinds:

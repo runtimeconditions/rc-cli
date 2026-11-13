@@ -1,2 +1,4 @@
 runtimeconditions.io/x/rc/common v0.2.0 h1:W1fdeprrNE2XdJUvtsEgclT1aRSJ3UPRus7oysE+VY8=
 runtimeconditions.io/x/rc/common v0.2.0/go.mod h1:VMdIVuWNgvHH+ywZ54l83ZrLfxjjiM743r93nj9MiPA=
+runtimeconditions.io/x/rc/env v0.2.0 h1:7ejPceB2UTxP2BTzC5PWaa5GQku1zlESwjNgPDrtQ+o=
+runtimeconditions.io/x/rc/env v0.2.0/go.mod h1:MFJzXA8LOlqch1VyXUmYlBapQ9uU6/UQTgKdDwxPfrM=

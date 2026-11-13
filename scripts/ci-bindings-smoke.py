@@ -136,7 +136,7 @@ def smoke(args, root):
     explicit = rc("profile", "go", "generate", *flags)
     require(default.stdout == explicit.stdout, "profile routes produced different bytes")
     profile = yaml.safe_load(default.stdout)
-    require(profile["extensions"] == [fixture["metadata"]["id"]] and profile["conditions"][0]["interface"] == {"type": "stream", "address": "example.test:1234"}, "generated profile differs from the fixture")
+    require(profile["extensions"] == ["https://bindings.example.test/parity:0.1.0"] and profile["conditions"][0]["interface"] == {"type": "stream", "address": "example.test:1234"}, "generated profile differs from the fixture")
 
     output = root / "profile.yaml"
     output.write_text("preserve existing profile\n")
