@@ -210,7 +210,7 @@ func checkProfile(data string) error {
 	if profile.APIVersion != "runtimeconditions.io/v1alpha1" || profile.Kind != "RuntimeConditionsProfile" ||
 		profile.Metadata.Name != "ci-fixture" || profile.Workload.URI != "https://example.com/ci-fixture" ||
 		profile.Workload.Version != "1.0.0" || len(profile.Extensions) != 1 ||
-		!strings.HasPrefix(profile.Extensions[0], "https://runtimeconditions.io/extensions/rc/common-integrations") ||
+		profile.Extensions[0] != "https://runtimeconditions.io/extensions/rc/common-integrations:v1alpha1" ||
 		len(profile.Conditions) != 1 || profile.Conditions[0].Kind != "cache" ||
 		profile.Conditions[0].Interface["type"] != "key_value" || profile.Conditions[0].Interface["engine"] != "redis" {
 		return fmt.Errorf("unexpected generated profile:\n%s", data)
