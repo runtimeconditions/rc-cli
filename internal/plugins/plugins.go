@@ -30,7 +30,7 @@ type Language struct {
 	Runtime []string
 	// OverrideEnv names an environment variable that holds an absolute executable path.
 	OverrideEnv string
-	// InstallHint tells a user how to get the add-on.
+	// InstallHint is the command that installs the add-on with the language's own tooling.
 	InstallHint string
 }
 
@@ -66,7 +66,7 @@ type NotInstalledError struct{ Language Language }
 
 func (e NotInstalledError) Error() string {
 	l := e.Language
-	return fmt.Sprintf("the %s profiler is not installed: %s was not found on PATH; install it (%s) or set %s to its absolute path",
+	return fmt.Sprintf("the %s profiler is not installed: %s was not found on PATH; install it with: %s; or set %s to its absolute path",
 		l.Display, strings.Join(l.Executables, " or "), l.InstallHint, l.OverrideEnv)
 }
 

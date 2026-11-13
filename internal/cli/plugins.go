@@ -55,7 +55,7 @@ func newLanguageCommand(language plugins.Language, deps Dependencies) *cobra.Com
 		Use:   language.ID + " [command] [flags]",
 		Short: "Generate profiles with the installed " + language.Display + " profiler",
 		Long: fmt.Sprintf("Run the installed %s profiler. The arguments after %q go to it unchanged, so its own help applies: rc profile %s --help.\n"+
-			"It must be installed separately (%s) and report core profile schema %s.",
+			"It is installed separately, for example with: %s. It must report core profile schema %s.",
 			language.Display, language.ID, language.ID, language.InstallHint, coreSchemaVersion),
 		Example:            fmt.Sprintf("  rc profile %s generate --project ./service --name orders --workload-uri https://example.com/orders", language.ID),
 		DisableFlagParsing: true,
@@ -72,7 +72,7 @@ func newLanguageCommand(language plugins.Language, deps Dependencies) *cobra.Com
 				return fmt.Errorf("the %s profiler at %s: %w", language.Display, found.Path, err)
 			}
 			if !info.Supports(coreSchemaVersion) {
-				return fmt.Errorf("the %s profiler %s at %s supports core profile schema %s, but this rc targets %s; install a matching version (%s)",
+				return fmt.Errorf("the %s profiler %s at %s supports core profile schema %s, but this rc targets %s; install a matching version with: %s",
 					language.Display, info.Version, found.Path, strings.Join(info.CoreSchemas, ", "), coreSchemaVersion, language.InstallHint)
 			}
 			code, err := deps.Runner.Run(ctx, process.Spec{

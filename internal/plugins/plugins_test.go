@@ -43,7 +43,7 @@ func TestFindReportsAMissingAddOnWithHowToInstallIt(t *testing.T) {
 	if !errors.As(err, &missing) {
 		t.Fatalf("got %v", err)
 	}
-	for _, want := range []string{"TypeScript profiler is not installed", "rc-profiler-typescript", TypeScript.InstallHint, TypeScript.OverrideEnv} {
+	for _, want := range []string{"TypeScript profiler is not installed", "rc-profiler-typescript", "install it with: " + TypeScript.InstallHint, TypeScript.OverrideEnv} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("%q missing from %q", want, err)
 		}

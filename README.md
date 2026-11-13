@@ -87,34 +87,22 @@ generation leaves an existing `--out` file unchanged.
 
 ## Optional language profilers
 
-Other languages run a separate add-on that is installed next to rc. `rc` finds it,
-checks that it fits, and runs it with your arguments unchanged.
+Other languages run a separate add-on that `rc` finds on `PATH`. It can come from the
+language's own tooling or from a system package, and `rc` does not care which. The
+TypeScript profiler is on npm for developers who want it in their npm scripts:
+`npm install --global @runtimeconditions/typescript-profiler`. System packages for Homebrew,
+apt, and yum, so that `rc` and its add-ons install the same way on a build server, are planned.
 
 | Command | Purpose |
 | --- | --- |
 | `rc profile typescript <command> [flags]` | Run the installed TypeScript profiler. |
-| `rc plugins list [--output yaml]` | Show the built-in Go profiler and each add-on's status, version, and path. |
+| `rc plugins list [--output yaml]` | Show the Go profiler and each add-on's status, version, and path. |
 
-The TypeScript profiler is the npm package `@runtimeconditions/typescript-profiler`:
-
-```sh
-npm install --global @runtimeconditions/typescript-profiler
-rc plugins list
-rc profile typescript generate --project ./service --name orders \
-  --workload-uri https://example.com/orders --out profile.yaml
-```
-
-- Everything after `typescript` goes to the add-on as it is, including flags, repeated
-  values, `--`, and `--help`. The add-on keeps its own command tree and flags (the
-  TypeScript profiler takes `--project`, where the Go commands take `--dir`).
-- `rc` looks for `rc-profiler-typescript`, then `runtimeconditions-typescript-profiler`, on
-  `PATH`. `RC_TYPESCRIPT_PROFILER` can name an absolute path instead, and then wins.
-- Before it runs the add-on, `rc` runs `<add-on> --version --json` and requires its
-  `coreSchemas` to include the core profile schema `rc` targets (0.4.0).
-- The add-on's output and exit status pass through. `rc` adds nothing when the add-on fails.
-- A missing add-on, a missing runtime (Node.js for TypeScript), and an incompatible
-  version are each reported once, with what to install.
-- Ctrl-C and termination signals are forwarded to the add-on's process group.
+Everything after `typescript` goes to the add-on unchanged, so it keeps its own flags
+(for example `--project` instead of `--dir`). `rc` looks for `rc-profiler-typescript`, then
+`runtimeconditions-typescript-profiler`, on `PATH`; `RC_TYPESCRIPT_PROFILER` can name an
+absolute path instead. It runs the add-on only if `--version --json` lists the core profile
+schema `rc` targets (0.4.0). The add-on's output and exit status pass through.
 
 ## Binding commands
 
