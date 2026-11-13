@@ -2,7 +2,9 @@
 
 Status: implementation sequence, updated 2026-11-11. Native Go profiling and binding
 commands are implemented, with CI coverage for the relocated CLI and shared YAML resources.
-System-package distribution, add-ons, and upstream workflow migration remain planned.
+The TypeScript add-on is implemented as a first slice (PATH lookup, a `--version --json`
+compatibility check, `rc profile typescript`, and `rc plugins list`). YAML add-on descriptors,
+`rc doctor`, other languages, system-package distribution, and upstream workflow migration remain planned.
 Repository: github.com/runtimeconditions/rc-cli; executable and command name: `rc`.
 System package and Homebrew formula name: `rc-cli`; releases use independent `vMAJOR.MINOR.PATCH` tags.
 This plan implements [CLI-PLANNING.md](../extensions/tooling/extension-bindings/CLI-PLANNING.md).
@@ -59,6 +61,7 @@ rc bindings <resolve|normalize|generate|verify|package|plan-release|check|update
 rc profile generate --dir ./service --out profile.yaml
 rc profile go generate --dir ./service --out profile.yaml
 rc profile go validate-extensions --dir ./service
+rc profile typescript generate --project ./service --name orders --workload-uri https://example.com/orders
 rc profile python profile generate --project ./service
 rc plugins list [--output yaml]
 rc doctor [--language go|python|java|...] [--output yaml]
@@ -168,6 +171,11 @@ runtime requirements, and an executable plus fixed argument prefix. Do not encod
 Define the strict schema and size limits before implementing discovery.
 The built-in Go profiler uses linked dependency metadata and needs no add-on descriptor or handshake.
 Future add-ons expose a bounded, versioned YAML describe operation as well as their native argv entry point.
+
+Implemented so far (TypeScript only): a fixed table names the executables to look up on PATH
+(`rc-profiler-typescript`, then `runtimeconditions-typescript-profiler`), `RC_TYPESCRIPT_PROFILER` selects an
+absolute path, the runtime (`node`) is checked, and `<add-on> --version --json` must report the core schema rc
+targets before the add-on runs. The descriptors described below replace this table.
 
 Optional add-on lookup order: explicit configured override, managed installed
 descriptor, then an explicitly named PATH fallback. Do not enumerate or execute arbitrary rc-* files.

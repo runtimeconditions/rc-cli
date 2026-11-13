@@ -43,8 +43,13 @@ type usageError struct{ error }
 
 // Execute reports errors once and returns the process exit code without calling os.Exit.
 func Execute(ctx context.Context, args []string, build BuildInfo, streams IOStreams) int {
+	return ExecuteWith(ctx, args, build, streams, DefaultDependencies())
+}
+
+// ExecuteWith is Execute with explicit process-level dependencies.
+func ExecuteWith(ctx context.Context, args []string, build BuildInfo, streams IOStreams, deps Dependencies) int {
 	streams = streams.normalized()
-	root := NewRootCommand(build, streams)
+	root := NewRootCommandWith(build, streams, deps)
 	// A non-nil empty slice prevents Cobra from falling back to os.Args.
 	root.SetArgs(append([]string{}, args...))
 	err := ctx.Err()
@@ -54,6 +59,10 @@ func Execute(ctx context.Context, args []string, build BuildInfo, streams IOStre
 	}
 	if err == nil {
 		return 0
+	}
+	var exit processExit
+	if errors.As(err, &exit) {
+		return exit.code
 	}
 	fmt.Fprintf(streams.ErrOut, "rc: %v\n", err)
 	if errors.Is(err, context.Canceled) {
@@ -71,6 +80,11 @@ func Execute(ctx context.Context, args []string, build BuildInfo, streams IOStre
 
 // NewRootCommand returns a fresh command tree. Callers may attach feature commands before execution.
 func NewRootCommand(build BuildInfo, streams IOStreams) *cobra.Command {
+	return NewRootCommandWith(build, streams, DefaultDependencies())
+}
+
+// NewRootCommandWith builds the command tree with explicit process-level dependencies.
+func NewRootCommandWith(build BuildInfo, streams IOStreams, deps Dependencies) *cobra.Command {
 	streams = streams.normalized()
 	if build.Version == "" {
 		build.Version = "dev"
@@ -95,7 +109,7 @@ func NewRootCommand(build BuildInfo, streams IOStreams) *cobra.Command {
 	root.SetErr(streams.ErrOut)
 	root.SetVersionTemplate("{{printf \"%s %s (%s)\\n\" .Name .Version (index .Annotations \"commit\")}}")
 	root.SetFlagErrorFunc(func(_ *cobra.Command, err error) error { return usageError{err} })
-	root.AddCommand(newVersionCommand(build), newCompletionCommand(), newProfileCommand(), newBindingsCommand())
+	root.AddCommand(newVersionCommand(build), newCompletionCommand(), newProfileCommand(deps), newPluginsCommand(deps), newBindingsCommand())
 	root.InitDefaultHelpCmd()
 	for _, cmd := range root.Commands() {
 		if cmd.Name() == "help" {
