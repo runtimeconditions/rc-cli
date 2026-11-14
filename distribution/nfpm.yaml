@@ -10,6 +10,8 @@ description: Runtime Conditions command line and binding resources
 vendor: Runtime Conditions
 homepage: https://github.com/runtimeconditions/rc-cli
 license: MIT
+suggests:
+  - rc-profiler-typescript
 contents:
   - src: usr
     dst: /usr
