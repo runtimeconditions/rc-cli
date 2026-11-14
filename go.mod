@@ -8,7 +8,7 @@ require (
 	github.com/runtimeconditions/extensions/tooling/extension-bindings/emitters/go v0.0.0-20261111072413-dd96ddaebb0d
 	github.com/runtimeconditions/extensions/tooling/extension-bindings/normalizer v0.0.0-20261111072413-dd96ddaebb0d
 	github.com/runtimeconditions/extensions/tooling/extension-bindings/orchestrator v0.0.0-20261111072413-dd96ddaebb0d
-	github.com/runtimeconditions/go-rc-profiler v0.7.0
+	github.com/runtimeconditions/go-rc-profiler v0.7.1
 	github.com/spf13/cobra v1.10.2
 	go.yaml.in/yaml/v3 v3.0.4
 	golang.org/x/mod v0.28.0

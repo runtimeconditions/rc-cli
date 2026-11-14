@@ -3,8 +3,8 @@ extensions:
   repository: https://github.com/runtimeconditions/extensions.git
   commit: dd96ddaebb0d29d882212d6ccc10c130f3ff2ddf
 goProfiler:
-  version: v0.7.0
-  commit: 723d0fc266b37a6572230986ea2839c444d6eddd
+  version: v0.7.1
+  commit: c5e4360b25076f106257027941c2618d6295bfb0
   protocol: go-profiler-argv/v1
   coreSchema:
     version: 0.4.0
@@ -13,18 +13,18 @@ goProfiler:
     sha256: 96d430c7936fcf7334aa9613f63bb306592e07cf56fe4154af57933d2c1480e6
   platforms:
     darwin/amd64:
-      url: https://github.com/runtimeconditions/go-rc-profiler/releases/download/v0.7.0/go-rc-profiler_v0.7.0_darwin_amd64.tar.gz
-      archiveSHA256: 2eb400add968a18cf7613af0b8f6c14417bdaee281748ae499f49147f11dcaf6
-      executableSHA256: 61f2cc30ec1858070d28638d5e7188ba94581d9f732f277deb9e8b6bdf32ff4d
+      url: https://github.com/runtimeconditions/go-rc-profiler/releases/download/v0.7.1/go-rc-profiler_v0.7.1_darwin_amd64.tar.gz
+      archiveSHA256: bde6defaaa75475d9438fdf266027ca3ae659ddf27d9abca28f12e7ebb9343bb
+      executableSHA256: 9f5b188922f1fa752a9b2a42fdfc9bd69c2d063a182a1bdc65acd2f529e078cf
     darwin/arm64:
-      url: https://github.com/runtimeconditions/go-rc-profiler/releases/download/v0.7.0/go-rc-profiler_v0.7.0_darwin_arm64.tar.gz
-      archiveSHA256: ecf424865c501fa29e0e840acacd7bccf5bf23df0ebff5abb8d71a6ba6733096
-      executableSHA256: 8654a5194e9fcbc0f4f4c7dbe27f3252f6c6cef6156eed72579a1ea9cfebbbdb
+      url: https://github.com/runtimeconditions/go-rc-profiler/releases/download/v0.7.1/go-rc-profiler_v0.7.1_darwin_arm64.tar.gz
+      archiveSHA256: a911f854ed2063da6b10d7c12c462b7a7925edcfe9806be635cdb287d98e01f8
+      executableSHA256: 6c75b3a3b6a5ce3c70310111040d699e637de5e2119839aff7f92580962ef193
     linux/amd64:
-      url: https://github.com/runtimeconditions/go-rc-profiler/releases/download/v0.7.0/go-rc-profiler_v0.7.0_linux_amd64.tar.gz
-      archiveSHA256: d61e1f578bb7ce914c6eadc33ca15b86320be00f37e828d0393c5d51d9b4a248
-      executableSHA256: a32ab012079a61b280ccdbad44770cb10f23ba4f07d40d7def513635b41c9d25
+      url: https://github.com/runtimeconditions/go-rc-profiler/releases/download/v0.7.1/go-rc-profiler_v0.7.1_linux_amd64.tar.gz
+      archiveSHA256: eba234b5b13f4b20217b54322018a4f5e285d1161acb07c9e5c61fa2d7f4b3dc
+      executableSHA256: 4b7617714b53829a5266a0bddb8098ce57a52d81a84041af10afb9f484740df3
     linux/arm64:
-      url: https://github.com/runtimeconditions/go-rc-profiler/releases/download/v0.7.0/go-rc-profiler_v0.7.0_linux_arm64.tar.gz
-      archiveSHA256: 75983b9fa1c34247c85b272ff2ae057376d56fbea1f7dc1b368134b657086dcb
-      executableSHA256: 9bd6a33cd131dc52a00076f3bce676f2dd32e624c1304666fbda2e62c316b5ec
+      url: https://github.com/runtimeconditions/go-rc-profiler/releases/download/v0.7.1/go-rc-profiler_v0.7.1_linux_arm64.tar.gz
+      archiveSHA256: 9bf2b594d7eb4f228aa970ded9bddc10e61f041b0d699fa3259d28a9664c5787
+      executableSHA256: 413b9bd4ad21180137058f6bfd0fc3ded19cb232bca2cbe2745e0496d7812dc8
