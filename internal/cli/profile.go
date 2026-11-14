@@ -1,6 +1,9 @@
 package cli
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/runtimeconditions/rc-cli/internal/plugins"
+	"github.com/spf13/cobra"
+)
 
 type goProfilerIdentity struct {
 	Name      string `yaml:"name"`
@@ -13,8 +16,14 @@ type goProfilerIdentity struct {
 	ModuleSum string `yaml:"moduleSum,omitempty"`
 }
 
-func newProfileCommand() *cobra.Command {
-	return newGoProfileCommands(linkedGoProfilerAPI())
+// newProfileCommand adds the optional language profilers to the built-in Go profiler.
+func newProfileCommand(deps Dependencies) *cobra.Command {
+	profile := newGoProfileCommands(linkedGoProfilerAPI())
+	profile.Long += "\n\nOther languages run an installed add-on: rc profile <language> ... (see rc plugins list)."
+	for _, language := range plugins.Languages() {
+		profile.AddCommand(newLanguageCommand(language, deps))
+	}
+	return profile
 }
 
 func newGoProfileCommands(api goProfilerAPI) *cobra.Command {

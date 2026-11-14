@@ -2,7 +2,8 @@
 
 Status: implementation sequence, updated 2026-11-11. Native Go profiling and binding
 commands are implemented, with CI coverage for the relocated CLI and shared YAML resources.
-System-package distribution, add-ons, and upstream workflow migration remain planned.
+The TypeScript add-on runs from PATH (`rc profile typescript`, `rc plugins list`). Add-on descriptors, `rc doctor`,
+other languages, system-package distribution, and upstream workflow migration remain planned.
 Repository: github.com/runtimeconditions/rc-cli; executable and command name: `rc`.
 System package and Homebrew formula name: `rc-cli`; releases use independent `vMAJOR.MINOR.PATCH` tags.
 This plan implements [CLI-PLANNING.md](../extensions/tooling/extension-bindings/CLI-PLANNING.md).
@@ -59,6 +60,7 @@ rc bindings <resolve|normalize|generate|verify|package|plan-release|check|update
 rc profile generate --dir ./service --out profile.yaml
 rc profile go generate --dir ./service --out profile.yaml
 rc profile go validate-extensions --dir ./service
+rc profile typescript generate --project ./service --name orders --workload-uri https://example.com/orders
 rc profile python profile generate --project ./service
 rc plugins list [--output yaml]
 rc doctor [--language go|python|java|...] [--output yaml]
