@@ -28,7 +28,7 @@ func newProfileCommand(deps Dependencies) *cobra.Command {
 
 func newGoProfileCommands(api goProfilerAPI) *cobra.Command {
 	profile := &cobra.Command{
-		Use: "profile", Short: "Generate profiles with the built-in Go profiler",
+		Use: "profile", Short: "Generate profiles with the built-in Go profiler, or validate any profile",
 		Long:    "Generate profiles with the Go profiler linked into rc. Go analysis requires a working Go toolchain.",
 		Example: "  rc profile generate --dir ./service\n  rc profile go generate --dir ./service",
 	}
@@ -42,7 +42,7 @@ func newGoProfileCommands(api goProfilerAPI) *cobra.Command {
 		parent.AddCommand(newGoGenerateCommand(api), newGoValidateCommand(api, true),
 			newGoValidateCommand(api, false), newGoVersionCommand())
 	}
-	profile.AddCommand(goCommand)
+	profile.AddCommand(goCommand, newProfileValidateCommand(linkedProfileValidateAPI()))
 	return profile
 }
 
