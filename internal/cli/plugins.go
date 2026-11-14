@@ -69,6 +69,9 @@ func newLanguageCommand(language plugins.Language, deps Dependencies) *cobra.Com
 			}
 			info, err := plugins.Describe(ctx, deps.Runner, found.Path)
 			if err != nil {
+				if runtime := deps.Finder.MissingRuntime(language); runtime != "" {
+					return plugins.RuntimeMissingError{Language: language, Runtime: runtime}
+				}
 				return fmt.Errorf("the %s profiler at %s: %w", language.Display, found.Path, err)
 			}
 			if !info.Supports(coreSchemaVersion) {
@@ -104,13 +107,9 @@ func inspectLanguage(ctx context.Context, language plugins.Language, deps Depend
 	row := pluginRow{Language: language.ID}
 	found, err := deps.Finder.Find(language)
 	var missing plugins.NotInstalledError
-	var runtime plugins.RuntimeMissingError
 	switch {
 	case errors.As(err, &missing):
 		row.Status, row.Detail = "missing", "install with: "+language.InstallHint
-		return row
-	case errors.As(err, &runtime):
-		row.Status, row.Detail = "runtime-missing", err.Error()
 		return row
 	case err != nil:
 		row.Status, row.Detail = "unusable", err.Error()
@@ -119,6 +118,10 @@ func inspectLanguage(ctx context.Context, language plugins.Language, deps Depend
 	row.Origin, row.Path = found.Origin, found.Path
 	info, err := plugins.Describe(ctx, deps.Runner, found.Path)
 	if err != nil {
+		if runtime := deps.Finder.MissingRuntime(language); runtime != "" {
+			row.Status, row.Detail = "runtime-missing", plugins.RuntimeMissingError{Language: language, Runtime: runtime}.Error()
+			return row
+		}
 		row.Status, row.Detail = "unreadable", err.Error()
 		return row
 	}

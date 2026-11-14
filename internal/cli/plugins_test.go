@@ -92,19 +92,36 @@ func TestAddOnExitStatusIsTheExitStatusOfRcWithoutExtraMessages(t *testing.T) {
 	}
 }
 
-func TestMissingAddOnAndMissingRuntimeAreReportedOnceWithWhatToInstall(t *testing.T) {
+func TestMissingAddOnIsReportedOnceWithWhatToInstall(t *testing.T) {
 	runner := &fakeRunner{version: readyVersion}
 	code, _, errOut := run(t, deps(runner, "node"), "profile", "typescript", "generate")
 	if code != 1 || strings.Count(errOut, "rc:") != 1 || !strings.Contains(errOut, "TypeScript profiler is not installed") ||
 		!strings.Contains(errOut, "npm install --global @runtimeconditions/typescript-profiler") || strings.Contains(errOut, "Usage:") {
 		t.Fatalf("code=%d stderr=%q", code, errOut)
 	}
-	code, _, errOut = run(t, deps(runner, "rc-profiler-typescript"), "profile", "typescript", "generate")
-	if code != 1 || !strings.Contains(errOut, "needs node") {
-		t.Fatalf("code=%d stderr=%q", code, errOut)
-	}
 	if len(runner.calls) != 0 {
 		t.Fatalf("nothing may run: %+v", runner.calls)
+	}
+}
+
+func TestAnAddOnThatCarriesItsOwnRuntimeRunsWithoutNodeOnPath(t *testing.T) {
+	runner := &fakeRunner{version: readyVersion, output: "profile: yaml\n"}
+	code, out, errOut := run(t, deps(runner, "rc-profiler-typescript"), "profile", "typescript", "generate")
+	if code != 0 || out != "profile: yaml\n" || errOut != "" || len(runner.calls) != 1 {
+		t.Fatalf("code=%d stdout=%q stderr=%q calls=%d", code, out, errOut, len(runner.calls))
+	}
+}
+
+func TestAnAddOnThatCannotRunIsBlamedOnNodeOnlyWhenNodeIsMissing(t *testing.T) {
+	runner := &fakeRunner{}
+	code, _, errOut := run(t, deps(runner, "rc-profiler-typescript"), "profile", "typescript", "generate")
+	if code != 1 || strings.Count(errOut, "rc:") != 1 || !strings.Contains(errOut, "needs node") || len(runner.calls) != 0 {
+		t.Fatalf("code=%d stderr=%q", code, errOut)
+	}
+	runner = &fakeRunner{}
+	code, _, errOut = run(t, deps(runner, "rc-profiler-typescript", "node"), "profile", "typescript", "generate")
+	if code != 1 || strings.Contains(errOut, "needs node") || !strings.Contains(errOut, "did not print the expected JSON") {
+		t.Fatalf("with node present the real error must show: code=%d stderr=%q", code, errOut)
 	}
 }
 
@@ -136,6 +153,10 @@ func TestPluginsListReportsEveryStatus(t *testing.T) {
 			t.Fatal(err)
 		}
 		return document.Plugins
+	}
+	packaged := read(deps(&fakeRunner{version: readyVersion}, "rc-profiler-typescript"))
+	if packaged[1].Status != "ready" {
+		t.Fatalf("an add-on with its own runtime is ready without node: %+v", packaged[1])
 	}
 	ready := read(deps(&fakeRunner{version: readyVersion}, "rc-profiler-typescript", "node"))
 	if len(ready) != 2 || ready[0].Language != "go" || ready[0].Status != "built-in" ||
