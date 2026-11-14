@@ -15,6 +15,8 @@ github.com/runtimeconditions/go-rc-profiler v0.6.1 h1:lFatYU891EnZs5+N24HvzyLJ51
 github.com/runtimeconditions/go-rc-profiler v0.6.1/go.mod h1:zQSOr50hlFxqJL2AaF3BpgTMbOlykey9OBa17E/jWFA=
 github.com/runtimeconditions/go-rc-profiler v0.7.0 h1:u78auPN14C9LRnZKoRFp3ZdjBOv7NNAzKjCXmtaS80s=
 github.com/runtimeconditions/go-rc-profiler v0.7.0/go.mod h1:zQSOr50hlFxqJL2AaF3BpgTMbOlykey9OBa17E/jWFA=
+github.com/runtimeconditions/go-rc-profiler v0.7.1 h1:tsnyrkgEYmgnmpuUK2SEwhWPZ2BFUxw5qIYPEBYoQ7I=
+github.com/runtimeconditions/go-rc-profiler v0.7.1/go.mod h1:zQSOr50hlFxqJL2AaF3BpgTMbOlykey9OBa17E/jWFA=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/santhosh-tekuri/jsonschema/v6 v6.0.3 h1:1EYB5IzjZawrrnELUi78f9fPu57HuXjmddZPjrls/28=
 github.com/santhosh-tekuri/jsonschema/v6 v6.0.3/go.mod h1:JXeL+ps8p7/KNMjDQk3TCwPpBy0wYklyWTfbkIzdIFU=
