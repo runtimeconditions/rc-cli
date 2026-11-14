@@ -26,7 +26,8 @@ type Language struct {
 	Display string
 	// Executables are looked up on PATH, in order.
 	Executables []string
-	// Runtime lists the programs the add-on needs on PATH, such as node.
+	// Runtime lists the programs an add-on installed from the language's own tooling needs on PATH,
+	// such as node. A system package that carries its own runtime does not need them.
 	Runtime []string
 	// OverrideEnv names an environment variable that holds an absolute executable path.
 	OverrideEnv string
@@ -70,7 +71,7 @@ func (e NotInstalledError) Error() string {
 		l.Display, strings.Join(l.Executables, " or "), l.InstallHint, l.OverrideEnv)
 }
 
-// RuntimeMissingError reports that the add-on is installed but a program it needs is not.
+// RuntimeMissingError reports that the add-on could not run and a program it needs is not on PATH.
 type RuntimeMissingError struct {
 	Language Language
 	Runtime  string
@@ -80,8 +81,7 @@ func (e RuntimeMissingError) Error() string {
 	return fmt.Sprintf("the %s profiler needs %s, which was not found on PATH", e.Language.Display, e.Runtime)
 }
 
-// Find returns the add-on for a language. An explicit override wins over PATH. The runtime
-// check comes last so a missing add-on and a missing runtime are reported separately.
+// Find returns the add-on for a language. An explicit override wins over PATH.
 func (f Finder) Find(language Language) (Found, error) {
 	found := Found{Language: language}
 	if override := f.Getenv(language.OverrideEnv); override != "" {
@@ -104,12 +104,19 @@ func (f Finder) Find(language Language) (Found, error) {
 			return Found{}, NotInstalledError{language}
 		}
 	}
+	return found, nil
+}
+
+// MissingRuntime returns the first program the add-on needs that is not on PATH, or "" when
+// they are all there. An add-on that ships its own runtime, such as the system package of the
+// TypeScript profiler, runs without them, so this is only asked after an add-on failed to run.
+func (f Finder) MissingRuntime(language Language) string {
 	for _, runtime := range language.Runtime {
 		if _, err := f.LookPath(runtime); err != nil {
-			return Found{}, RuntimeMissingError{Language: language, Runtime: runtime}
+			return runtime
 		}
 	}
-	return found, nil
+	return ""
 }
 
 // Info is what an add-on reports about itself for `--version --json`.

@@ -50,11 +50,17 @@ func TestFindReportsAMissingAddOnWithHowToInstallIt(t *testing.T) {
 	}
 }
 
-func TestFindReportsAMissingRuntimeSeparately(t *testing.T) {
-	_, err := finder(map[string]string{"rc-profiler-typescript": "/bin/short"}, nil).Find(TypeScript)
-	var runtime RuntimeMissingError
-	if !errors.As(err, &runtime) || runtime.Runtime != "node" || !strings.Contains(err.Error(), "needs node") {
-		t.Fatalf("got %v", err)
+func TestFindDoesNotRequireTheRuntimeBecauseAPackagedAddOnCarriesItsOwn(t *testing.T) {
+	withoutNode := finder(map[string]string{"rc-profiler-typescript": "/bin/short"}, nil)
+	if found, err := withoutNode.Find(TypeScript); err != nil || found.Path != "/bin/short" {
+		t.Fatalf("%+v %v", found, err)
+	}
+	if got := withoutNode.MissingRuntime(TypeScript); got != "node" {
+		t.Fatalf("missing runtime %q, want node", got)
+	}
+	withNode := finder(map[string]string{"rc-profiler-typescript": "/bin/short", "node": "/bin/node"}, nil)
+	if got := withNode.MissingRuntime(TypeScript); got != "" {
+		t.Fatalf("missing runtime %q, want none", got)
 	}
 }
 
