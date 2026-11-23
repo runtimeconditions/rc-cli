@@ -1,18 +1,13 @@
 package validate
 
 import (
-	"encoding/base64"
 	"errors"
 	"fmt"
 
+	"github.com/runtimeconditions/go-rc-profiler/extensioncheck"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 	"go.yaml.in/yaml/v3"
 )
-
-// coreSchemaBase64 is set by the release build from the separately versioned core profile schema,
-// after its SHA-256 has been checked (scripts/build.go). A plain go build leaves it empty and
-// validation fails closed, because a profile cannot be called valid without the core schema.
-var coreSchemaBase64 string
 
 var coreSchemaOverride []byte
 
@@ -26,14 +21,14 @@ var errNoCoreSchema = errors.New("this build of rc has no verified core profile 
 func loadCoreSchema() (*jsonschema.Schema, error) {
 	data := coreSchemaOverride
 	if len(data) == 0 {
-		if coreSchemaBase64 == "" {
+		schema, err := extensioncheck.InstalledCoreSchema()
+		if errors.Is(err, extensioncheck.ErrNoInstalledCoreSchema) {
 			return nil, errNoCoreSchema
 		}
-		decoded, err := base64.StdEncoding.DecodeString(coreSchemaBase64)
 		if err != nil {
-			return nil, fmt.Errorf("the embedded core profile schema is not valid base64: %w", err)
+			return nil, err
 		}
-		data = decoded
+		data = schema
 	}
 	var document map[string]any
 	if err := yaml.Unmarshal(data, &document); err != nil {
