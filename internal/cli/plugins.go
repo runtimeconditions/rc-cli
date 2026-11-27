@@ -78,8 +78,9 @@ func newLanguageCommand(language plugins.Language, deps Dependencies) *cobra.Com
 				return fmt.Errorf("the %s profiler %s at %s supports core profile schema %s, but this rc targets %s; install a matching version with: %s",
 					language.Display, info.Version, found.Path, strings.Join(info.CoreSchemas, ", "), coreSchemaVersion, language.InstallHint)
 			}
+			env := append(os.Environ(), "RC_COMMAND_PREFIX="+cmd.CommandPath())
 			code, err := deps.Runner.Run(ctx, process.Spec{
-				Path: found.Path, Args: args,
+				Path: found.Path, Args: args, Env: env,
 				Stdin: cmd.InOrStdin(), Stdout: cmd.OutOrStdout(), Stderr: cmd.ErrOrStderr(),
 			})
 			if err != nil {

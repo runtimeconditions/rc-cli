@@ -74,6 +74,9 @@ func TestAddOnReceivesItsArgumentsUnchangedAndItsOutputPassesThrough(t *testing.
 	if len(runner.calls) != 1 || runner.calls[0].Path != "/usr/bin/rc-profiler-typescript" || !slices.Equal(runner.calls[0].Args, args) {
 		t.Fatalf("calls %+v", runner.calls)
 	}
+	if !slices.Contains(runner.calls[0].Env, "RC_COMMAND_PREFIX=rc profile typescript") {
+		t.Fatalf("expected RC_COMMAND_PREFIX in env, got: %v", runner.calls[0].Env)
+	}
 }
 
 func TestAddOnHelpAndVersionFlagsReachTheAddOn(t *testing.T) {
@@ -240,6 +243,9 @@ func TestJavaAddOnReceivesItsArgumentsUnchangedAndItsOutputPassesThrough(t *test
 	if len(runner.calls) != 1 || runner.calls[0].Path != "/usr/bin/rc-profiler-java" || !slices.Equal(runner.calls[0].Args, args) {
 		t.Fatalf("calls: %+v", runner.calls)
 	}
+	if !slices.Contains(runner.calls[0].Env, "RC_COMMAND_PREFIX=rc profile java") {
+		t.Fatalf("expected RC_COMMAND_PREFIX in env, got: %v", runner.calls[0].Env)
+	}
 }
 
 func TestJavaAddOnThatIsNotInstalledSaysHowToGetIt(t *testing.T) {
@@ -271,6 +277,9 @@ func TestPythonAddOnReceivesItsArgumentsUnchangedAndItsOutputPassesThrough(t *te
 	}
 	if len(runner.calls) != 1 || runner.calls[0].Path != "/usr/bin/runtimeconditions-python-profiler" || !slices.Equal(runner.calls[0].Args, args) {
 		t.Fatalf("calls: %+v", runner.calls)
+	}
+	if !slices.Contains(runner.calls[0].Env, "RC_COMMAND_PREFIX=rc profile python") {
+		t.Fatalf("expected RC_COMMAND_PREFIX in env, got: %v", runner.calls[0].Env)
 	}
 }
 

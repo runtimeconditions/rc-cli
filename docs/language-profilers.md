@@ -27,7 +27,10 @@ looks for `rc-profiler-typescript`, then `runtimeconditions-typescript-profiler`
 `rc-profiler-java`, or `runtimeconditions-python-profiler`, on `PATH`;
 `RC_TYPESCRIPT_PROFILER`, `RC_JAVA_PROFILER`, or `RC_PYTHON_PROFILER` can name an absolute
 path instead. It runs the add-on only if `--version --json` lists the core profile schema
-`rc` targets (0.4.0). The add-on's output and exit status pass through.
+`rc` targets (0.4.0). The add-on's output and exit status pass through. When `rc`
+invokes an add-on, it sets `RC_COMMAND_PREFIX` in its environment (for example
+`rc profile typescript`), so the add-on's usage text and diagnostics can suggest
+commands the user can copy directly.
 
 The Java launcher chooses the JDK, not `rc`: `RC_JAVA_HOME`, then `JAVA_HOME`, then the
 runtime bundled in its system package, then `java` on `PATH`. It needs JDK 17 or newer and
